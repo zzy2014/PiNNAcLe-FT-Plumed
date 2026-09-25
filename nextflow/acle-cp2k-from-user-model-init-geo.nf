@@ -221,6 +221,7 @@ workflow loop {
   // combine everything for new inputs ====================================================
   ch_inp.map{[it[0], it[4]]}.set {nx_step}
   ch_inp.map{[it[0], it[5]]}.set {nx_time}
+  ch_inp.map{[it[0], it[1]]}.set {nx_geo}
 
   acc_fac = params.acc_fac.toFloat()
   brake_fac = params.brake_fac.toFloat()
@@ -228,8 +229,9 @@ workflow loop {
   max_time = params.max_time.toFloat()
   retrain_step = params.retrain_step.toInteger()
 
-  nx_geo_converge | join(nx_models) | join(nx_ds) | join(nx_time) | join (nx_step) \
-    | map {gen, geo, converge, models, ds, time, step -> \
+  // to check if keeping use the same initial geo, please remove --start-idx from params.collect_flags
+  nx_geo_converge | join(nx_models) | join(nx_ds) | join(nx_time) | join (nx_step) | join(nx_geo) \
+    | map {gen, geo_check, converge, models, ds, time, step, geo -> \
            [(gen.toInteger()+1).toString(),
             geo, ds, models, \
             converge ? step : step+retrain_step, \
@@ -243,9 +245,9 @@ workflow loop {
 
   // Uncomment the following release_space channel to delete intermediate files and save disk space when storage space is limited.
   // By default, intermediate files in the "models" and "md" subfolders will be deleted. You can change this setting in the module/tools.nf file.
-  // nx_inp \
-  //   | map { it -> tuple(it[0], file(params.publish)) } \
-  //   | release_space
+  nx_inp \
+    | map { it -> tuple(it[0], file(params.publish)) } \
+    | release_space
 
   emit:
   nx_inp
